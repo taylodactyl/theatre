@@ -23,5 +23,5 @@ class ScreeningSerializer(serializers.ModelSerializer):
 class TicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
-        fields = ['id', 'showing']
+        fields = ['id', 'screening']
 
