@@ -3,8 +3,8 @@ from django.test import TestCase
 from django.db.utils import IntegrityError
 from django.urls import reverse
 from .models import Room, Movie
-from rest_framework.test import RequestsClient
 from rest_framework.test import APITestCase
+
 
 class RoomModelTestCase(TestCase):
     def setUp(self):
@@ -34,6 +34,14 @@ class RoomApiTestCase(APITestCase):
         self.client.post(url, data, format='json')
         self.assertEqual(Room.objects.get().capacity, capacity)
 
+    def test_room_delete(self):
+        list_url = reverse('room-list')
+        detail_url = reverse('room-detail', args=['1'])
+        data = {'capacity': '25'}
+        self.client.post(list_url, data, format='json')
+        self.client.delete(detail_url, format='json')
+        self.assertEqual(Room.objects.count(), 0)
+
     def test_no_negative_capacity_saved(self):
         capacity = -10
         url = reverse('room-list')
@@ -42,6 +50,7 @@ class RoomApiTestCase(APITestCase):
         #       database errors to escape
         with self.assertRaises(IntegrityError):
             self.client.post(url, data, format='json')
+
 
 class MovieApiTestCase(APITestCase):
 
@@ -68,3 +77,12 @@ class MovieApiTestCase(APITestCase):
         data = {'length': '{}'.format(length), 'title': 'blah'}
         self.client.post(url, data, format='json')
         self.assertEqual(Movie.objects.get().length, length)
+
+    def test_movie_delete(self):
+        list_url = reverse('movie-list')
+        detail_url = reverse('movie-detail', args=['1'])
+        data = {'title': 'blah'}
+        self.client.post(list_url, data, format='json')
+        self.client.delete(detail_url, format='json')
+        self.assertEqual(Movie.objects.count(), 0)
+
