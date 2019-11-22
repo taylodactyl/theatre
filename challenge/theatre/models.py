@@ -1,9 +1,9 @@
 from django.db import models
-from datetime import timedelta
+from datetime import timedelta, date
 
 
 class Room(models.Model):
-    capacity = models.IntegerField(default=100)
+    capacity = models.PositiveIntegerField(default=100)
 
     def __str__(self):
         return "{} - Seats {}".format(self.id, self.capacity)
@@ -27,8 +27,9 @@ class Screening(models.Model):
 
 
 class Ticket(models.Model):
-    showing = models.ForeignKey(Screening, on_delete=models.CASCADE)
+    screening = models.ForeignKey(Screening, on_delete=models.CASCADE)
+    date = models.DateField()
 
     def __str__(self):
-        return "{}".format(self.showing)
+        return "{} - {}".format(self.screening, self.date)
 
