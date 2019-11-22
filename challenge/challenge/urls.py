@@ -19,6 +19,7 @@ from theatre import views
 
 router = DefaultRouter()
 router.register(r'rooms', views.RoomViewSet)
+router.register(r'movies', views.MovieViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

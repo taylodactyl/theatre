@@ -1,7 +1,8 @@
+import datetime
 from django.test import TestCase
 from django.db.utils import IntegrityError
 from django.urls import reverse
-from .models import Room
+from .models import Room, Movie
 from rest_framework.test import RequestsClient
 from rest_framework.test import APITestCase
 
@@ -41,3 +42,29 @@ class RoomApiTestCase(APITestCase):
         #       database errors to escape
         with self.assertRaises(IntegrityError):
             self.client.post(url, data, format='json')
+
+class MovieApiTestCase(APITestCase):
+
+    def test_successful_get_status(self):
+        response = self.client.get('http://testserver/movies/')
+        self.assertEquals(response.status_code, 200)
+
+    def test_post_single_movie(self):
+        url = reverse('movie-list')
+        data = {'title': 'blah'}
+        self.client.post(url, data, format='json')
+        self.assertEqual(Movie.objects.count(), 1)
+
+    def test_movie_title_saved(self):
+        title = 'blah'
+        url = reverse('movie-list')
+        data = {'title': '{}'.format(title)}
+        self.client.post(url, data, format='json')
+        self.assertEqual(Movie.objects.get().title, title)
+
+    def test_movie_length_saved(self):
+        length = datetime.timedelta(hours=2, minutes=2, seconds=2)
+        url = reverse('movie-list')
+        data = {'length': '{}'.format(length), 'title': 'blah'}
+        self.client.post(url, data, format='json')
+        self.assertEqual(Movie.objects.get().length, length)
