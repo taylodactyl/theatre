@@ -2,7 +2,7 @@ import datetime
 from django.test import TestCase
 from django.db.utils import IntegrityError
 from django.urls import reverse
-from .models import Room, Movie
+from .models import Room, Movie, Screening
 from rest_framework.test import APITestCase
 
 
@@ -85,4 +85,36 @@ class MovieApiTestCase(APITestCase):
         self.client.post(list_url, data, format='json')
         self.client.delete(detail_url, format='json')
         self.assertEqual(Movie.objects.count(), 0)
+
+
+class ScreeningApiTestCase(APITestCase):
+    def setUp(self):
+        Room(capacity=20).save()
+        Movie(title="blah").save()
+        self.time = datetime.time(hour=5)
+        self.data = {'movie': '1', 'room': '1',
+                     'time': "{}".format(self.time)}
+
+    def test_successful_get_status(self):
+        response = self.client.get('/screenings/')
+        self.assertEquals(response.status_code, 200)
+
+    def test_post_single_screening(self):
+        url = reverse('screening-list')
+        data = {'movie': '1', 'room': '1',
+                'time': "{}".format(datetime.time(hour=5))}
+        self.client.post(url, data, format='json')
+        self.assertEqual(Screening.objects.count(), 1)
+
+    def test_screening_time_saved(self):
+        url = reverse('screening-list')
+        self.client.post(url, self.data, format='json')
+        self.assertEqual(Screening.objects.filter(time=self.time).count(), 1)
+
+    def test_screening_delete(self):
+        list_url = reverse('screening-list')
+        detail_url = reverse('screening-detail', args=['1'])
+        self.client.post(list_url, self.data, format='json')
+        self.client.delete(detail_url, format='json')
+        self.assertEqual(Screening.objects.count(), 0)
 

@@ -1,5 +1,5 @@
-from theatre.models import Room, Movie
-from theatre.serializers import RoomSerializer, MovieSerializer
+from theatre.models import Room, Movie, Screening
+from theatre.serializers import RoomSerializer, MovieSerializer, ScreeningSerializer
 from rest_framework import viewsets
 
 
@@ -11,3 +11,8 @@ class RoomViewSet(viewsets.ModelViewSet):
 class MovieViewSet(viewsets.ModelViewSet):
     queryset = Movie.objects.all()
     serializer_class = MovieSerializer
+
+
+class ScreeningViewSet(viewsets.ModelViewSet):
+    queryset = Screening.objects.all()
+    serializer_class = ScreeningSerializer
