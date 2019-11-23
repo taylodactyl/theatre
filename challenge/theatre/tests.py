@@ -171,3 +171,55 @@ class ScreeningApiTestCase(APITestCase):
         # Buy one more ticket and get rejected
         response = self.client.get(buy_ticket_url)
         self.assertTrue(status.is_client_error(response.status_code))
+
+
+class ScreeningOverlapTestCase(APITestCase):
+    def setUp(self):
+        self.room = Room(capacity=20)
+        self.room.save()
+        self.first_movie = Movie(title="first", length=datetime.timedelta(hours=1))
+        self.second_movie = Movie(title="second", length=datetime.timedelta(hours=1))
+        self.first_movie.save()
+        self.second_movie.save()
+
+    # movie 1: |===========|
+    # movie 2:              |===========|
+    def test_no_overlap_is_fine(self):
+        screening_one = Screening(room=self.room, movie=self.first_movie, time=datetime.time(hour=5))
+        screening_two = Screening(room=self.room, movie=self.second_movie, time=datetime.time(hour=6))
+        self.assertFalse(screening_one.overlaps(screening_two))
+
+    # movie 1: |===========|
+    # movie 2:       |===========|
+    # check if movie 1 knows it overlaps
+    def test_left_overlap_fails(self):
+        screening_one = Screening(room=self.room, movie=self.first_movie, time=datetime.time(hour=5, minute=30))
+        screening_two = Screening(room=self.room, movie=self.second_movie, time=datetime.time(hour=6))
+        self.assertTrue(screening_one.overlaps(screening_two))
+
+    # movie 1: |===========|
+    # movie 2:       |===========|
+    # check if movie 2 knows it overlaps
+    def test_right_overlap_fails(self):
+        screening_one = Screening(room=self.room, movie=self.first_movie, time=datetime.time(hour=5, minute=30))
+        screening_two = Screening(room=self.room, movie=self.second_movie, time=datetime.time(hour=6))
+        self.assertTrue(screening_two.overlaps(screening_one))
+
+    # movie 1: |========================|
+    # movie 2:       |===========|
+    # check if movie 1 knows it overlaps
+    def test_containment_fails_when_containing(self):
+        three_hour_movie = Movie(title="long", length=datetime.timedelta(hours=3))
+        screening_one = Screening(room=self.room, movie=three_hour_movie, time=datetime.time(hour=5))
+        screening_two = Screening(room=self.room, movie=self.second_movie, time=datetime.time(hour=6))
+        self.assertTrue(screening_one.overlaps(screening_two))
+
+    # movie 1: |========================|
+    # movie 2:       |===========|
+    # check if movie 2 knows it overlaps
+    def test_containment_fails_when_contained(self):
+        three_hour_movie = Movie(title="long", length=datetime.timedelta(hours=3))
+        screening_one = Screening(room=self.room, movie=three_hour_movie, time=datetime.time(hour=5))
+        screening_two = Screening(room=self.room, movie=self.second_movie, time=datetime.time(hour=6))
+        self.assertTrue(screening_two.overlaps(screening_one))
+
