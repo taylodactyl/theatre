@@ -3,6 +3,7 @@ from theatre.serializers import RoomSerializer, MovieSerializer, ScreeningSerial
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.http import HttpResponseBadRequest
 import datetime
 
 
@@ -16,6 +17,13 @@ class MovieViewSet(viewsets.ModelViewSet):
     serializer_class = MovieSerializer
 
 
+def overlap_exists(proposed_screening):
+    for screening in Screening.objects.all():
+        if proposed_screening.overlaps(screening):
+            return True
+    return False
+
+
 class ScreeningViewSet(viewsets.ModelViewSet):
     queryset = Screening.objects.all()
     serializer_class = ScreeningSerializer
@@ -27,6 +35,13 @@ class ScreeningViewSet(viewsets.ModelViewSet):
             ticket.save()
             return Response(TicketSerializer(ticket).data)
         else:
-            content = {'reason': 'sold out'}
-            return Response(content, status=status.HTTP_403_FORBIDDEN)
+            return HttpResponseBadRequest("Screening sold out")
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        proposed_screening = Screening(**serializer.validated_data)
+        if overlap_exists(proposed_screening):
+            return HttpResponseBadRequest("Overlaps existing screening")
+        return super(ScreeningViewSet, self).create(request, args, kwargs)
 

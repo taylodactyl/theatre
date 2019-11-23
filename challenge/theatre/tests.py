@@ -139,9 +139,18 @@ class ScreeningApiTestCase(APITestCase):
         self.client.delete(detail_url, format='json')
         self.assertEqual(Screening.objects.count(), 0)
 
-    def add_screening(self):
+    def add_screening(self, data=None):
         list_url = reverse('screening-list')
-        self.client.post(list_url, self.data, format='json')
+        if data is None:
+            data = self.data
+        return self.client.post(list_url, data, format='json')
+
+    def test_cannot_add_overlapping_screening(self):
+        data = {'movie': '1', 'room': '1',
+                'time': "{}".format(datetime.time(hour=5, minute=30))}
+        self.add_screening()  # Add screening at 5
+        response = self.add_screening(data)
+        self.assertTrue(status.is_client_error(response.status_code))
 
     def test_buy_ticket_success(self):
         self.add_screening()
