@@ -2,7 +2,7 @@ import datetime
 from django.test import TestCase
 from django.db.utils import IntegrityError
 from django.urls import reverse
-from .models import Room, Movie, Screening
+from .models import Room, Movie, Screening, Ticket
 from rest_framework.test import APITestCase
 
 
@@ -117,4 +117,20 @@ class ScreeningApiTestCase(APITestCase):
         self.client.post(list_url, self.data, format='json')
         self.client.delete(detail_url, format='json')
         self.assertEqual(Screening.objects.count(), 0)
+
+    def test_buy_one_ticket(self):
+        list_url = reverse('screening-list')
+        self.client.post(list_url, self.data, format='json')
+        buy_ticket_url = reverse('screening-buyticket', args=['1'])
+        self.client.get(buy_ticket_url)
+        self.assertEqual(Ticket.objects.count(), 1)
+
+    def test_buy_ticket_for_correct_screening(self):
+        screening_id = 1
+        list_url = reverse('screening-list')
+        self.client.post(list_url, self.data, format='json')
+        buy_ticket_url = reverse('screening-buyticket', args=['{}'.format(screening_id)])
+        response = self.client.get(buy_ticket_url)
+        self.assertEqual(screening_id, response.data['screening'])
+
 
