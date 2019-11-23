@@ -155,30 +155,30 @@ class ScreeningApiTestCase(APITestCase):
     def test_buy_ticket_success(self):
         self.add_screening()
         buy_ticket_url = reverse('screening-buyticket', args=['1'])
-        response = self.client.get(buy_ticket_url)
+        response = self.client.post(buy_ticket_url)
         self.assertTrue(status.is_success(response.status_code))
 
     def test_buy_one_ticket(self):
         self.add_screening()
         buy_ticket_url = reverse('screening-buyticket', args=['1'])
-        self.client.get(buy_ticket_url)
+        self.client.post(buy_ticket_url)
         self.assertEqual(Ticket.objects.count(), 1)
 
     def test_buy_ticket_for_correct_screening(self):
         screening_id = 1
         self.add_screening()
         buy_ticket_url = reverse('screening-buyticket', args=['{}'.format(screening_id)])
-        response = self.client.get(buy_ticket_url)
+        response = self.client.post(buy_ticket_url)
         self.assertEqual(screening_id, response.data['screening'])
 
     def test_no_more_tickets_than_seats(self):
         self.add_screening()
         buy_ticket_url = reverse('screening-buyticket', args=['1'])
         for _ in range(self.room.capacity):  # Buy all the tickets
-            self.client.get(buy_ticket_url)
+            self.client.post(buy_ticket_url)
 
         # Buy one more ticket and get rejected
-        response = self.client.get(buy_ticket_url)
+        response = self.client.post(buy_ticket_url)
         self.assertTrue(status.is_client_error(response.status_code))
 
 

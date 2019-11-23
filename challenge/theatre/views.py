@@ -28,7 +28,7 @@ class ScreeningViewSet(viewsets.ModelViewSet):
     queryset = Screening.objects.all()
     serializer_class = ScreeningSerializer
 
-    @action(detail=True, url_path='buyticket', url_name='buyticket')
+    @action(methods=['POST'], detail=True, url_path='buyticket', url_name='buyticket')
     def buy_ticket(self, request, *args, **kwargs):
         if self.get_object().are_seats_remaining():
             ticket = Ticket(screening=self.get_object(), date=datetime.date.today())
