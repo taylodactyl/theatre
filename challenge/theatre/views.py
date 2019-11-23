@@ -30,12 +30,18 @@ class ScreeningViewSet(viewsets.ModelViewSet):
 
     @action(methods=['POST'], detail=True, url_path='buyticket', url_name='buyticket')
     def buy_ticket(self, request, *args, **kwargs):
-        if self.get_object().are_seats_remaining():
-            ticket = Ticket(screening=self.get_object(), date=datetime.date.today())
+        proposed_date = datetime.date.today()
+        if 'date' in request.data:
+            try:
+                proposed_date = datetime.datetime.strptime(request.data['date'], "%Y-%m-%d")
+            except ValueError:
+                return HttpResponseBadRequest("Improper format for requested date")
+        if self.get_object().are_seats_remaining(proposed_date):
+            ticket = Ticket(screening=self.get_object(), date=proposed_date)
             ticket.save()
             return Response(TicketSerializer(ticket).data)
         else:
-            return HttpResponseBadRequest("Screening sold out")
+            return HttpResponseBadRequest("Unable to purchase ticket for specified screening")
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

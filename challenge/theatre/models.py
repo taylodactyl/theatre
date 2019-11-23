@@ -22,8 +22,15 @@ class Screening(models.Model):
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
     time = models.TimeField()
 
-    def are_seats_remaining(self):
-        return self.ticket_set.count() < self.room.capacity
+    def are_seats_remaining(self, date, current_time=None):
+        if current_time is None:
+            current_time = datetime.datetime.now()
+
+        # No seats remaining for showings that have already started
+        if datetime.datetime.combine(date, self.time) < current_time:
+            return False
+
+        return self.ticket_set.filter(date=date).count() < self.room.capacity
 
     def overlaps(self, other_screening):
         # Overlap calc inspired by https://stackoverflow.com/a/9044111

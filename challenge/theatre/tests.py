@@ -22,17 +22,42 @@ class ScreeningModelTestCase(TestCase):
         self.room.save()
         self.movie = Movie(title="blah")
         self.movie.save()
+        self.today = datetime.date(year=2000, month=1, day=1)
+        self.tomorrow = self.today + datetime.timedelta(days=1)
+        self.yesterday = self.today - datetime.timedelta(days=1)
+        self.current_time = datetime.datetime.combine(self.today, datetime.time(hour=1))
 
     def test_seats_remaining_when_there_are(self):
         screening = Screening(room=self.room, movie=self.movie, time=datetime.time(hour=10))
-        self.assertTrue(screening.are_seats_remaining())
+        self.assertTrue(screening.are_seats_remaining(self.today, current_time=self.current_time))
 
     def test_seats_remaining_when_sold_out(self):
         screening = Screening(room=self.room, movie=self.movie, time=datetime.time(hour=10))
         screening.save()
-        ticket = Ticket(screening=screening, date=datetime.date.today())
+        ticket = Ticket(screening=screening, date=self.today)
         ticket.save()
-        self.assertFalse(screening.are_seats_remaining())
+        self.assertFalse(screening.are_seats_remaining(self.today, current_time=self.current_time))
+
+    def test_seats_for_different_date_still_available(self):
+        screening = Screening(room=self.room, movie=self.movie, time=datetime.time(hour=10))
+        screening.save()
+        ticket = Ticket(screening=screening, date=datetime.date(year=2000, month=1, day=1))
+        ticket.save()
+        self.assertTrue(screening.are_seats_remaining(self.tomorrow, current_time=self.current_time))
+
+    def test_can_buy_tickets_for_tomorrow(self):
+        screening = Screening(room=self.room, movie=self.movie, time=datetime.time(hour=10))
+        screening.save()
+        ticket = Ticket(screening=screening, date=self.tomorrow)
+        ticket.save()
+        self.assertFalse(screening.are_seats_remaining(self.tomorrow, current_time=self.current_time))
+
+    def test_cannot_buy_tickets_for_yesterday(self):
+        screening = Screening(room=self.room, movie=self.movie, time=datetime.time(hour=10))
+        screening.save()
+        ticket = Ticket(screening=screening, date=self.tomorrow)
+        ticket.save()
+        self.assertFalse(screening.are_seats_remaining(self.tomorrow, current_time=self.current_time))
 
 
 class RoomApiTestCase(APITestCase):
@@ -115,6 +140,8 @@ class ScreeningApiTestCase(APITestCase):
         self.time = datetime.time(hour=5)
         self.data = {'movie': '1', 'room': '1',
                      'time': "{}".format(self.time)}
+        # TODO: there is probably a better way to isolate these tests from time of day
+        self.data_for_ticket = {'date': "{}".format(datetime.date.today() + datetime.timedelta(days=1))}
 
     def test_successful_get_status(self):
         response = self.client.get('/screenings/')
@@ -155,30 +182,37 @@ class ScreeningApiTestCase(APITestCase):
     def test_buy_ticket_success(self):
         self.add_screening()
         buy_ticket_url = reverse('screening-buyticket', args=['1'])
-        response = self.client.post(buy_ticket_url)
+        response = self.client.post(buy_ticket_url, data=self.data_for_ticket, format='json')
         self.assertTrue(status.is_success(response.status_code))
 
     def test_buy_one_ticket(self):
         self.add_screening()
         buy_ticket_url = reverse('screening-buyticket', args=['1'])
-        self.client.post(buy_ticket_url)
+        self.client.post(buy_ticket_url, data=self.data_for_ticket, format='json')
         self.assertEqual(Ticket.objects.count(), 1)
 
     def test_buy_ticket_for_correct_screening(self):
         screening_id = 1
         self.add_screening()
         buy_ticket_url = reverse('screening-buyticket', args=['{}'.format(screening_id)])
-        response = self.client.post(buy_ticket_url)
+        response = self.client.post(buy_ticket_url, data=self.data_for_ticket, format='json')
         self.assertEqual(screening_id, response.data['screening'])
 
     def test_no_more_tickets_than_seats(self):
         self.add_screening()
         buy_ticket_url = reverse('screening-buyticket', args=['1'])
         for _ in range(self.room.capacity):  # Buy all the tickets
-            self.client.post(buy_ticket_url)
+            self.client.post(buy_ticket_url, data=self.data_for_ticket, format='json')
 
         # Buy one more ticket and get rejected
-        response = self.client.post(buy_ticket_url)
+        response = self.client.post(buy_ticket_url, data=self.data_for_ticket, format='json')
+        self.assertTrue(status.is_client_error(response.status_code))
+
+    def test_no_ticket_for_bogus_date(self):
+        bad_data_for_ticket = {'date': "asdfasdf"}
+        self.add_screening()
+        buy_ticket_url = reverse('screening-buyticket', args=['1'])
+        response = self.client.post(buy_ticket_url, data=bad_data_for_ticket, format='json')
         self.assertTrue(status.is_client_error(response.status_code))
 
 
