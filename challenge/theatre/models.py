@@ -22,6 +22,9 @@ class Screening(models.Model):
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
     time = models.TimeField()
 
+    def are_seats_remaining(self):
+        return self.ticket_set.count() < self.room.capacity
+
     def __str__(self):
         return "{} - {} @ {}".format(self.room, self.movie, self.time)
 

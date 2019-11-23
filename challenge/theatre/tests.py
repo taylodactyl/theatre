@@ -4,6 +4,7 @@ from django.db.utils import IntegrityError
 from django.urls import reverse
 from .models import Room, Movie, Screening, Ticket
 from rest_framework.test import APITestCase
+from rest_framework import status
 
 
 class RoomModelTestCase(TestCase):
@@ -13,6 +14,25 @@ class RoomModelTestCase(TestCase):
     def test_no_negative_capacity(self):
         with self.assertRaises(IntegrityError):
             Room(capacity=-1).save()
+
+
+class ScreeningModelTestCase(TestCase):
+    def setUp(self):
+        self.room = Room(capacity=1)
+        self.room.save()
+        self.movie = Movie(title="blah")
+        self.movie.save()
+
+    def test_seats_remaining_when_there_are(self):
+        screening = Screening(room=self.room, movie=self.movie, time=datetime.time(hour=10))
+        self.assertTrue(screening.are_seats_remaining())
+
+    def test_seats_remaining_when_sold_out(self):
+        screening = Screening(room=self.room, movie=self.movie, time=datetime.time(hour=10))
+        screening.save()
+        ticket = Ticket(screening=screening, date=datetime.date.today())
+        ticket.save()
+        self.assertFalse(screening.are_seats_remaining())
 
 
 class RoomApiTestCase(APITestCase):
@@ -89,7 +109,8 @@ class MovieApiTestCase(APITestCase):
 
 class ScreeningApiTestCase(APITestCase):
     def setUp(self):
-        Room(capacity=20).save()
+        self.room = Room(capacity=20)
+        self.room.save()
         Movie(title="blah").save()
         self.time = datetime.time(hour=5)
         self.data = {'movie': '1', 'room': '1',
@@ -118,19 +139,35 @@ class ScreeningApiTestCase(APITestCase):
         self.client.delete(detail_url, format='json')
         self.assertEqual(Screening.objects.count(), 0)
 
-    def test_buy_one_ticket(self):
+    def add_screening(self):
         list_url = reverse('screening-list')
         self.client.post(list_url, self.data, format='json')
+
+    def test_buy_ticket_success(self):
+        self.add_screening()
+        buy_ticket_url = reverse('screening-buyticket', args=['1'])
+        response = self.client.get(buy_ticket_url)
+        self.assertTrue(status.is_success(response.status_code))
+
+    def test_buy_one_ticket(self):
+        self.add_screening()
         buy_ticket_url = reverse('screening-buyticket', args=['1'])
         self.client.get(buy_ticket_url)
         self.assertEqual(Ticket.objects.count(), 1)
 
     def test_buy_ticket_for_correct_screening(self):
         screening_id = 1
-        list_url = reverse('screening-list')
-        self.client.post(list_url, self.data, format='json')
+        self.add_screening()
         buy_ticket_url = reverse('screening-buyticket', args=['{}'.format(screening_id)])
         response = self.client.get(buy_ticket_url)
         self.assertEqual(screening_id, response.data['screening'])
 
+    def test_no_more_tickets_than_seats(self):
+        self.add_screening()
+        buy_ticket_url = reverse('screening-buyticket', args=['1'])
+        for _ in range(self.room.capacity):  # Buy all the tickets
+            self.client.get(buy_ticket_url)
 
+        # Buy one more ticket and get rejected
+        response = self.client.get(buy_ticket_url)
+        self.assertTrue(status.is_client_error(response.status_code))
